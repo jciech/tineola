@@ -58,16 +58,22 @@ throughput, 64kb haystack, random lowercase ascii with ~1% match density.
 sbt "bench/Jmh/run -i 10 -wi 10 -f 3"
 ```
 
-single-iteration smoke numbers (jdk 21, 8 patterns. run the full bench for real data):
+ops/ms (jdk 21, 3 wi / 3 i. run the full bench for real data):
 
-| impl | ops/ms |
-|---|---|
-| tineola (teddy) | 40.93 |
-| hankcs/AhoCorasickDoubleArrayTrie | 3.34 |
-| tineola (dat only) | 2.67 |
-| robert-bor/aho-corasick | 1.57 |
+| impl | 8 patterns | 32 patterns | 128 patterns |
+|---|---|---|---|
+| tineola (teddy) | 39.13 | 3.04 | n/a (auto-disabled) |
+| tineola (dat only) | 3.20 | 3.09 | 3.64 |
+| hankcs/AhoCorasickDoubleArrayTrie | 3.41 | 2.60 | 3.08 |
+| robert-bor/aho-corasick | 1.55 | 1.20 | — |
 
-teddy's advantage shrinks as pattern count grows; above ~128 patterns the automaton wins and teddy is disabled automatically.
+teddy's speedup comes from skipping verification when simd finds no candidates. false positive rate grows with pattern count and with shared prefix bytes. practical guidance:
+
+- **≤16 patterns with diverse prefixes** → expect 10x or more over scalar
+- **patterns sharing first bytes** (e.g. all starting with `http`) → buckets collide, prefilter weakens. consider `enableTeddy(false)` and just use the automaton
+- **short random patterns at ~32+** → break-even or worse. the auto-cutoff is 128 but your crossover may be lower
+
+the automaton alone is competitive with hankcs at all counts, so disabling teddy never makes you slow.
 
 ## installing
 

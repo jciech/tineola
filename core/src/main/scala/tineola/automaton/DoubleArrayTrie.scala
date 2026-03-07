@@ -7,17 +7,37 @@ private[tineola] final class DoubleArrayTrie(
     private val check: Array[Int],
     private val fail: Array[Int],
     private val output: Array[Array[Int]],
+    private val rootGoto: Array[Int],
     val patternLengths: Array[Int]
 ) {
 
   def numPatterns: Int = patternLengths.length
 
   def findAll(haystack: Array[Byte], from: Int, to: Int, out: Match => Unit): Unit = {
+    val base = this.base
+    val check = this.check
+    val fail = this.fail
+    val output = this.output
+    val rootGoto = this.rootGoto
+
     var state = 0
     var i = from
-    val n = to
-    while (i < n) {
-      state = step(state, haystack(i) & 0xff)
+    while (i < to) {
+      val b = haystack(i) & 0xff
+      if (state == 0) {
+        state = rootGoto(b)
+      } else {
+        var s = state
+        var done = false
+        while (!done) {
+          val t = base(s) + b
+          if (check(t) == s) { state = t; done = true }
+          else {
+            s = fail(s)
+            if (s == 0) { state = rootGoto(b); done = true }
+          }
+        }
+      }
       val os = output(state)
       if (os != null) {
         var j = 0
@@ -30,17 +50,5 @@ private[tineola] final class DoubleArrayTrie(
       }
       i += 1
     }
-  }
-
-  @inline
-  private def step(state: Int, b: Int): Int = {
-    var s = state
-    while (true) {
-      val t = base(s) + b
-      if (t < check.length && check(t) == s) return t
-      if (s == 0) return 0
-      s = fail(s)
-    }
-    0
   }
 }

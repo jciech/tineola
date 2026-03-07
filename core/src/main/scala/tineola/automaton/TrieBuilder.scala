@@ -63,7 +63,6 @@ private[tineola] final class TrieBuilder {
     var base = new Array[Int](capacity)
     var check = Array.fill(capacity)(-1)
 
-    val stateToBase = new Array[Int](numStates)
     val stateToSlot = new Array[Int](numStates)
     stateToSlot(0) = 0
     check(0) = 0
@@ -114,7 +113,6 @@ private[tineola] final class TrieBuilder {
       val children = goto(s).toArray.sortBy(_._1)
       val keys = children.map { case (b, _) => b & 0xff }
       val b = findBase(keys)
-      stateToBase(s) = b
       val slot = stateToSlot(s)
       base(slot) = b
       for ((byte, child) <- children) {
@@ -136,12 +134,25 @@ private[tineola] final class TrieBuilder {
       if (os.nonEmpty) outSlot(slot) = os.toArray
     }
 
+    val padded = nextFree + alphabet
+    ensureCapacity(padded - 1)
+
+    val rootGoto = new Array[Int](alphabet)
+    val rootBase = base(0)
+    var b = 0
+    while (b < alphabet) {
+      val t = rootBase + b
+      rootGoto(b) = if (check(t) == 0) t else 0
+      b += 1
+    }
+
     val lens = lengths.toArray
     new DoubleArrayTrie(
-      base = java.util.Arrays.copyOf(base, nextFree),
-      check = java.util.Arrays.copyOf(check, nextFree),
-      fail = java.util.Arrays.copyOf(failSlot, nextFree),
-      output = java.util.Arrays.copyOf(outSlot, nextFree),
+      base = java.util.Arrays.copyOf(base, padded),
+      check = java.util.Arrays.copyOf(check, padded),
+      fail = java.util.Arrays.copyOf(failSlot, padded),
+      output = java.util.Arrays.copyOf(outSlot, padded),
+      rootGoto = rootGoto,
       patternLengths = lens
     )
   }
