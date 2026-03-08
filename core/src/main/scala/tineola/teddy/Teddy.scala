@@ -12,8 +12,9 @@ private[tineola] trait Teddy {
 
 private[tineola] object Teddy {
 
-  val MaxPatterns = 64
-  val MaxBucketSize = 4
+  val MaxPatterns = 128
+  val MaxSlimBucketSize = 4
+  val MaxFatBucketSize = 3
 
   val DefaultSpecies: VectorSpecies[java.lang.Byte] = {
     val pref = ByteVector.SPECIES_PREFERRED
@@ -32,12 +33,24 @@ private[tineola] object Teddy {
     val minLen = patterns.iterator.map(_.length).min
     if (minLen < 1) return None
     val n = if (minLen >= 3) 3 else if (minLen >= 2) 2 else 1
-    val masks = Masks.build(patterns, n)
-    if (masks.buckets.iterator.map(_.length).max > MaxBucketSize) return None
-    Some(n match {
-      case 1 => new TeddySlim1(species, masks, dat)
-      case 2 => new TeddySlim2(species, masks, dat)
-      case 3 => new TeddySlim3(species, masks, dat)
-    })
+
+    val slim = Masks.buildSlim(patterns, n)
+    if (slim.maxBucketSize <= MaxSlimBucketSize)
+      return Some(n match {
+        case 1 => new TeddySlim1(species, slim, dat)
+        case 2 => new TeddySlim2(species, slim, dat)
+        case 3 => new TeddySlim3(species, slim, dat)
+      })
+
+    if (species.length() < 32) return None
+    val fat = Masks.buildFat(patterns, n)
+    if (fat.maxBucketSize <= MaxFatBucketSize)
+      return Some(n match {
+        case 1 => new TeddyFat1(fat, dat)
+        case 2 => new TeddyFat2(fat, dat)
+        case 3 => new TeddyFat3(fat, dat)
+      })
+
+    None
   }
 }

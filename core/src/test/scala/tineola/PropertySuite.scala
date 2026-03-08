@@ -25,6 +25,12 @@ class PropertySuite extends munit.ScalaCheckSuite {
       ps <- Gen.listOfN(n, patternGen)
     } yield ps.distinct
 
+  private val manyPatternsGen: Gen[List[String]] =
+    for {
+      n <- Gen.choose(30, 80)
+      ps <- Gen.listOfN(n, patternGen)
+    } yield ps.distinct
+
   private val haystackGen: Gen[String] =
     for {
       len <- Gen.choose(0, 500)
@@ -39,6 +45,12 @@ class PropertySuite extends munit.ScalaCheckSuite {
 
   property("teddy (256) findAll == DAT findAll") {
     forAll(patternsGen, haystackGen) { (patterns, hay) =>
+      parity(patterns, hay, ByteVector.SPECIES_256)
+    }
+  }
+
+  property("fat teddy findAll == DAT findAll") {
+    forAll(manyPatternsGen, haystackGen) { (patterns, hay) =>
       parity(patterns, hay, ByteVector.SPECIES_256)
     }
   }

@@ -58,16 +58,39 @@ class TeddySuite extends munit.FunSuite {
     assertEquals(t, d)
   }
 
-  test("teddy disabled for >64 patterns") {
-    val patterns = (0 until 100).map(i => f"p$i%03d")
+  test("teddy disabled for >128 patterns") {
+    val patterns = (0 until 200).map(i => f"p$i%03d")
     val ac = AhoCorasick(patterns)
     assert(ac.teddy.isEmpty)
   }
 
-  test("teddy disabled when bucket overflows") {
+  test("teddy disabled when all share fingerprint") {
     val patterns = (0 until 8).map(i => s"xxx$i")
     val ac = AhoCorasick(patterns)
     assert(ac.teddy.isEmpty)
+  }
+
+  test("fat teddy enabled when slim overflows") {
+    val patterns = (0 until 48).map(i => f"${('a' + i % 26).toChar}$i%02d")
+    val ac = AhoCorasick(patterns)
+    assert(ac.teddy.isDefined)
+    assert(ac.teddy.get.isInstanceOf[tineola.teddy.TeddyFat])
+  }
+
+  test("fat teddy agrees with DAT") {
+    val patterns = (0 until 48).map(i => f"${('a' + i % 26).toChar}$i%02d")
+    val hay = (patterns.mkString + "noise") * 30
+    val (t, d) = both(patterns, hay)
+    assertEquals(t, d)
+  }
+
+  test("fat teddy chunk boundaries") {
+    val patterns = (0 until 48).map(i => f"${('a' + i % 26).toChar}$i%02d")
+    for (offset <- 0 until 32) {
+      val hay = "z" * offset + patterns(0) + "z" * 100
+      val (t, d) = both(patterns, hay)
+      assertEquals(t, d, s"offset=$offset")
+    }
   }
 
   test("teddy enabled for diverse small set") {
