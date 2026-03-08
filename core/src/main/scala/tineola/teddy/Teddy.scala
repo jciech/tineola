@@ -10,7 +10,8 @@ private[tineola] trait Teddy {
 
 private[tineola] object Teddy {
 
-  val MaxPatterns = 128
+  val MaxPatterns = 64
+  val MaxBucketSize = 4
 
   def tryBuild(patterns: Array[Array[Byte]], dat: DoubleArrayTrie): Option[Teddy] = {
     if (patterns.isEmpty || patterns.length > MaxPatterns) return None
@@ -18,6 +19,7 @@ private[tineola] object Teddy {
     if (minLen < 1) return None
     val n = if (minLen >= 3) 3 else if (minLen >= 2) 2 else 1
     val masks = Masks.build(patterns, n)
+    if (masks.buckets.iterator.map(_.length).max > MaxBucketSize) return None
     Some(n match {
       case 1 => new TeddySlim1(masks, dat)
       case 2 => new TeddySlim2(masks, dat)

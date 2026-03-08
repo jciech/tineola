@@ -57,10 +57,22 @@ class TeddySuite extends munit.FunSuite {
     assertEquals(t, d)
   }
 
-  test("teddy disabled for >128 patterns") {
-    val patterns = (0 until 200).map(i => f"p$i%03d")
+  test("teddy disabled for >64 patterns") {
+    val patterns = (0 until 100).map(i => f"p$i%03d")
     val ac = AhoCorasick(patterns)
     assert(ac.teddy.isEmpty)
+  }
+
+  test("teddy disabled when bucket overflows") {
+    val patterns = (0 until 8).map(i => s"xxx$i")
+    val ac = AhoCorasick(patterns)
+    assert(ac.teddy.isEmpty)
+  }
+
+  test("teddy enabled for diverse small set") {
+    val patterns = Seq("abc", "def", "ghi", "jkl", "mno", "pqr", "stu", "vwx")
+    val ac = AhoCorasick(patterns)
+    assert(ac.teddy.isDefined)
   }
 
   test("tail handled by DAT") {

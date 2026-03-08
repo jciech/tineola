@@ -11,7 +11,13 @@ finds all occurrences of a set of patterns in a haystack. combines two engines:
 - a **teddy simd prefilter** (via `jdk.incubator.vector`) for small pattern sets. scans 16 bytes at a time using the pshufb nibble-lookup trick from hyperscan/rust's `aho-corasick`
 - a **double-array trie aho-corasick** automaton as scalar fallback. works for any pattern count, handles tails and large pattern sets
 
-the teddy path auto-enables for ≤128 patterns and haystacks long enough to fill a simd lane. everything else routes to the automaton. results are identical either way.
+the teddy path auto-enables when patterns spread to <=4 per bucket (greedy by fingerprint, 8 buckets, hard cap 64 patterns). haystack must also fill a simd lane. everything else routes to the automaton. results are identical either way.
+
+teddy's speedup comes from skipping verification when simd finds no candidates. false positive rate grows with pattern count and with shared prefix bytes. practical guidance:
+
+1. teddy will get you ~10x speedup over scalar for <= 16 diverse prefix patterns
+2. patterns sharing first bytes will cause buckets to collide and the teddy prefilter to weaken
+3. short, random patterns at >=32 patterns will break even with scalar or be worse
 
 ## usage
 
@@ -60,20 +66,15 @@ sbt "bench/Jmh/run -i 10 -wi 10 -f 3"
 
 ops/ms (jdk 21, 3 wi / 3 i. run the full bench for real data):
 
-| impl | 8 patterns | 32 patterns | 128 patterns |
-|---|---|---|---|
-| tineola (teddy) | 39.13 | 3.04 | n/a (auto-disabled) |
-| tineola (dat only) | 3.20 | 3.09 | 3.64 |
-| hankcs/AhoCorasickDoubleArrayTrie | 3.41 | 2.60 | 3.08 |
-| robert-bor/aho-corasick | 1.55 | 1.20 | — |
+| impl | 8 patterns | 16 patterns | 32 patterns | 64 patterns |
+|---|---|---|---|---|
+| tineola (auto) | 39.13 | 31.24 | 3.06 | 4.31 |
+| tineola (dat forced) | 3.20 | 2.73 | 3.12 | 4.18 |
+| hankcs/AhoCorasickDoubleArrayTrie | 3.41 | 2.57 | 2.58 | 3.33 |
+| robert-bor/aho-corasick | 1.55 | 1.09 | 1.17 | 1.18 |
 
-teddy's speedup comes from skipping verification when simd finds no candidates. false positive rate grows with pattern count and with shared prefix bytes. practical guidance:
+at 32+ random short patterns teddy auto-disables — the auto row tracks dat once verification cost stops paying off.
 
-- **≤16 patterns with diverse prefixes** → expect 10x or more over scalar
-- **patterns sharing first bytes** (e.g. all starting with `http`) → buckets collide, prefilter weakens. consider `enableTeddy(false)` and just use the automaton
-- **short random patterns at ~32+** → break-even or worse. the auto-cutoff is 128 but your crossover may be lower
-
-the automaton alone is competitive with hankcs at all counts, so disabling teddy never makes you slow.
 
 ## installing
 
