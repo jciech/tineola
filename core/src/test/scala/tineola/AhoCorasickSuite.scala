@@ -84,4 +84,15 @@ class AhoCorasickSuite extends munit.FunSuite {
     val ac = AhoCorasick(Seq("foo", "bar"))
     assertEquals(ac.findFirst("xxbarxxfoo").map(_.pattern), Some(1))
   }
+
+  test("findFirst short-circuits on large haystack") {
+    val ac = AhoCorasick(Seq("needle"))
+    val hay = "needle" + "x" * 1000000
+    assertEquals(ac.findFirst(hay), Some(Match(0, 0, 6)))
+  }
+
+  test("findFirst no match") {
+    val ac = AhoCorasick(Seq("xyz"))
+    assertEquals(ac.findFirst("abcabc" * 100), None)
+  }
 }

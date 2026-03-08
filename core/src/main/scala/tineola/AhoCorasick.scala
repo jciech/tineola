@@ -33,15 +33,18 @@ final class AhoCorasick private (
     findAll(haystack.getBytes(UTF_8))
 
   def findFirst(haystack: Array[Byte]): Option[Match] = {
-    var result: Option[Match] = None
-    val cb: Match => Unit = m => if (result.isEmpty) result = Some(m)
-    teddy match {
-      case Some(t) if haystack.length >= t.minHaystackLen =>
-        t.findAll(haystack, 0, haystack.length, cb)
-      case _ =>
-        automaton.findAll(haystack, 0, haystack.length, cb)
-    }
-    result
+    import AhoCorasick.Found
+    var result: Match = null
+    try {
+      val cb: Match => Unit = { m => result = m; throw Found }
+      teddy match {
+        case Some(t) if haystack.length >= t.minHaystackLen =>
+          t.findAll(haystack, 0, haystack.length, cb)
+        case _ =>
+          automaton.findAll(haystack, 0, haystack.length, cb)
+      }
+    } catch { case Found => () }
+    Option(result)
   }
 
   def findFirst(haystack: String): Option[Match] =
@@ -49,6 +52,8 @@ final class AhoCorasick private (
 }
 
 object AhoCorasick {
+
+  private object Found extends scala.util.control.ControlThrowable
 
   def apply(patterns: Iterable[String]): AhoCorasick =
     builder.addAll(patterns.map(_.getBytes(UTF_8))).build()
