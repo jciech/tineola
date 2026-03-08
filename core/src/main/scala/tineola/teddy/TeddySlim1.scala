@@ -1,7 +1,8 @@
 package tineola.teddy
 
-import jdk.incubator.vector.{ByteVector, VectorSpecies}
+import jdk.incubator.vector.{ByteVector, VectorOperators, VectorSpecies}
 
+import tineola.Match
 import tineola.automaton.DoubleArrayTrie
 
 private[teddy] final class TeddySlim1(
@@ -12,9 +13,20 @@ private[teddy] final class TeddySlim1(
 
   private val loMask = ByteVector.fromArray(S, Masks.tile(m.lo(0), lane), 0)
   private val hiMask = ByteVector.fromArray(S, Masks.tile(m.hi(0), lane), 0)
+  private val stride = lane
 
-  protected def fingerprintLen: Int = 1
-
-  protected def candidates(lo: ByteVector, hi: ByteVector): ByteVector =
-    lo.selectFrom(loMask).and(hi.selectFrom(hiMask))
+  final def findAll(h: Array[Byte], from: Int, to: Int, out: Match => Unit): Unit = {
+    val bound = to - lane
+    var i = from
+    while (i <= bound) {
+      val chunk = ByteVector.fromArray(S, h, i)
+      val lo = chunk.and(nib)
+      val hi = chunk.lanewise(VectorOperators.LSHR, 4).and(nib)
+      val cand = lo.selectFrom(loMask).and(hi.selectFrom(hiMask))
+      if (cand.compare(VectorOperators.NE, 0.toByte).anyTrue())
+        verify(h, i, to, stride, cand, out)
+      i += stride
+    }
+    dat.findAll(h, i, to, out)
+  }
 }

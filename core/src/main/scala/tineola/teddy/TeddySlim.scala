@@ -1,6 +1,6 @@
 package tineola.teddy
 
-import jdk.incubator.vector.{ByteVector, VectorOperators, VectorSpecies}
+import jdk.incubator.vector.{ByteVector, VectorSpecies}
 
 import tineola.Match
 import tineola.automaton.DoubleArrayTrie
@@ -8,7 +8,7 @@ import tineola.automaton.DoubleArrayTrie
 private[teddy] abstract class TeddySlim(
     protected final val S: VectorSpecies[java.lang.Byte],
     m: Masks,
-    dat: DoubleArrayTrie
+    protected final val dat: DoubleArrayTrie
 ) extends Teddy {
 
   protected final val lane = S.length()
@@ -19,32 +19,13 @@ private[teddy] abstract class TeddySlim(
   private val plens = dat.patternLengths
   private val maxPatLen = plens.max
 
-  protected def fingerprintLen: Int
-  protected def candidates(lo: ByteVector, hi: ByteVector): ByteVector
-
-  private val stride = lane - fingerprintLen + 1
-
   final def minHaystackLen: Int = lane + maxPatLen
 
-  final def findAll(h: Array[Byte], from: Int, to: Int, out: Match => Unit): Unit = {
-    val bound = to - lane
-    var i = from
-    while (i <= bound) {
-      val chunk = ByteVector.fromArray(S, h, i)
-      val lo = chunk.and(nib)
-      val hi = chunk.lanewise(VectorOperators.LSHR, 4).and(nib)
-      val cand = candidates(lo, hi)
-      if (cand.compare(VectorOperators.NE, 0.toByte).anyTrue())
-        verify(h, i, to, cand, out)
-      i += stride
-    }
-    dat.findAll(h, i, to, out)
-  }
-
-  private def verify(
+  protected final def verify(
       h: Array[Byte],
       base: Int,
       end: Int,
+      stride: Int,
       cand: ByteVector,
       out: Match => Unit
   ): Unit = {
