@@ -27,8 +27,8 @@ private[teddy] abstract class TeddySlim(
       end: Int,
       stride: Int,
       cand: ByteVector,
-      out: Match => Unit
-  ): Unit = {
+      out: Match => Boolean
+  ): Boolean = {
     val longs = cand.reinterpretAsLongs()
     var k = 0
     while (k < numLongs) {
@@ -46,13 +46,14 @@ private[teddy] abstract class TeddySlim(
             val pid = ps(j)
             val plen = plens(pid)
             if (pos + plen <= end && matches(h, pos, pats(pid), plen))
-              out(Match(pid, pos, pos + plen))
+              if (!out(Match(pid, pos, pos + plen))) return false
             j += 1
           }
         }
       }
       k += 1
     }
+    true
   }
 
   @inline

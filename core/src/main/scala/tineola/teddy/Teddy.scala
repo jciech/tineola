@@ -7,7 +7,7 @@ import tineola.automaton.DoubleArrayTrie
 
 private[tineola] trait Teddy {
   def minHaystackLen: Int
-  def findAll(haystack: Array[Byte], from: Int, to: Int, out: Match => Unit): Unit
+  def scan(haystack: Array[Byte], from: Int, to: Int, out: Match => Boolean): Unit
 }
 
 private[tineola] object Teddy {

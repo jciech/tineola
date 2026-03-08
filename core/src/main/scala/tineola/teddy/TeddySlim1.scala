@@ -15,7 +15,7 @@ private[teddy] final class TeddySlim1(
   private val hiMask = ByteVector.fromArray(S, Masks.tile(m.hi(0), lane), 0)
   private val stride = lane
 
-  final def findAll(h: Array[Byte], from: Int, to: Int, out: Match => Unit): Unit = {
+  final def scan(h: Array[Byte], from: Int, to: Int, out: Match => Boolean): Unit = {
     val bound = to - lane
     var i = from
     while (i <= bound) {
@@ -24,9 +24,9 @@ private[teddy] final class TeddySlim1(
       val hi = chunk.lanewise(VectorOperators.LSHR, 4).and(nib)
       val cand = lo.selectFrom(loMask).and(hi.selectFrom(hiMask))
       if (cand.compare(VectorOperators.NE, 0.toByte).anyTrue())
-        verify(h, i, to, stride, cand, out)
+        if (!verify(h, i, to, stride, cand, out)) return
       i += stride
     }
-    dat.findAll(h, i, to, out)
+    dat.scan(h, i, to, out)
   }
 }

@@ -20,12 +20,7 @@ final class AhoCorasick private (
 
   def findAll(haystack: Array[Byte], from: Int, to: Int): Iterator[Match] = {
     val buf = ArrayBuffer.empty[Match]
-    teddy match {
-      case Some(t) if to - from >= t.minHaystackLen =>
-        t.findAll(haystack, from, to, buf += _)
-      case _ =>
-        automaton.findAll(haystack, from, to, buf += _)
-    }
+    scan(haystack, from, to) { m => buf += m; true }
     buf.iterator
   }
 
@@ -33,27 +28,24 @@ final class AhoCorasick private (
     findAll(haystack.getBytes(UTF_8))
 
   def findFirst(haystack: Array[Byte]): Option[Match] = {
-    import AhoCorasick.Found
     var result: Match = null
-    try {
-      val cb: Match => Unit = { m => result = m; throw Found }
-      teddy match {
-        case Some(t) if haystack.length >= t.minHaystackLen =>
-          t.findAll(haystack, 0, haystack.length, cb)
-        case _ =>
-          automaton.findAll(haystack, 0, haystack.length, cb)
-      }
-    } catch { case Found => () }
+    scan(haystack, 0, haystack.length) { m => result = m; false }
     Option(result)
   }
 
   def findFirst(haystack: String): Option[Match] =
     findFirst(haystack.getBytes(UTF_8))
+
+  private def scan(haystack: Array[Byte], from: Int, to: Int)(out: Match => Boolean): Unit =
+    teddy match {
+      case Some(t) if to - from >= t.minHaystackLen =>
+        t.scan(haystack, from, to, out)
+      case _ =>
+        automaton.scan(haystack, from, to, out)
+    }
 }
 
 object AhoCorasick {
-
-  private object Found extends scala.util.control.ControlThrowable
 
   def apply(patterns: Iterable[String]): AhoCorasick =
     builder.addAll(patterns.map(_.getBytes(UTF_8))).build()

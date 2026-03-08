@@ -17,7 +17,7 @@ private[teddy] final class TeddyFat3(m: Masks, dat: DoubleArrayTrie) extends Ted
   private val shl2 = halfShift(2)
   private val stride = Chunk - 2
 
-  final def findAll(h: Array[Byte], from: Int, to: Int, out: Match => Unit): Unit = {
+  final def scan(h: Array[Byte], from: Int, to: Int, out: Match => Boolean): Unit = {
     val bound = to - 32
     var i = from
     while (i <= bound) {
@@ -29,9 +29,9 @@ private[teddy] final class TeddyFat3(m: Masks, dat: DoubleArrayTrie) extends Ted
       val c2 = lo.selectFrom(lo2).and(hi.selectFrom(hi2))
       val cand = c0.and(c1.rearrange(shl1)).and(c2.rearrange(shl2))
       if (cand.compare(VectorOperators.NE, 0.toByte).anyTrue())
-        verify(h, i, to, stride, cand, out)
+        if (!verify(h, i, to, stride, cand, out)) return
       i += stride
     }
-    dat.findAll(h, i, to, out)
+    dat.scan(h, i, to, out)
   }
 }

@@ -18,7 +18,7 @@ private[teddy] final class TeddySlim2(
   private val shl1 = S.iotaShuffle(1, 1, true)
   private val stride = lane - 1
 
-  final def findAll(h: Array[Byte], from: Int, to: Int, out: Match => Unit): Unit = {
+  final def scan(h: Array[Byte], from: Int, to: Int, out: Match => Boolean): Unit = {
     val bound = to - lane
     var i = from
     while (i <= bound) {
@@ -29,9 +29,9 @@ private[teddy] final class TeddySlim2(
       val c1 = lo.selectFrom(lo1).and(hi.selectFrom(hi1))
       val cand = c0.and(c1.rearrange(shl1))
       if (cand.compare(VectorOperators.NE, 0.toByte).anyTrue())
-        verify(h, i, to, stride, cand, out)
+        if (!verify(h, i, to, stride, cand, out)) return
       i += stride
     }
-    dat.findAll(h, i, to, out)
+    dat.scan(h, i, to, out)
   }
 }

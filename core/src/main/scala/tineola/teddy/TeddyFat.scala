@@ -63,8 +63,8 @@ private[tineola] abstract class TeddyFat(m: Masks, protected final val dat: Doub
       end: Int,
       stride: Int,
       cand: ByteVector,
-      out: Match => Unit
-  ): Unit = {
+      out: Match => Boolean
+  ): Boolean = {
     val longs = cand.reinterpretAsLongs()
     var k = 0
     while (k < 4) {
@@ -82,13 +82,14 @@ private[tineola] abstract class TeddyFat(m: Masks, protected final val dat: Doub
             val pid = ps(j)
             val plen = plens(pid)
             if (pos + plen <= end && matches(h, pos, pats(pid), plen))
-              out(Match(pid, pos, pos + plen))
+              if (!out(Match(pid, pos, pos + plen))) return false
             j += 1
           }
         }
       }
       k += 1
     }
+    true
   }
 
   @inline

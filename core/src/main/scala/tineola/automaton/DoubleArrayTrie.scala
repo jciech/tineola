@@ -13,7 +13,7 @@ private[tineola] final class DoubleArrayTrie(
 
   def numPatterns: Int = patternLengths.length
 
-  def findAll(haystack: Array[Byte], from: Int, to: Int, out: Match => Unit): Unit = {
+  def scan(haystack: Array[Byte], from: Int, to: Int, out: Match => Boolean): Unit = {
     val base = this.base
     val check = this.check
     val fail = this.fail
@@ -44,7 +44,7 @@ private[tineola] final class DoubleArrayTrie(
         while (j < os.length) {
           val p = os(j)
           val len = patternLengths(p)
-          out(Match(p, i - len + 1, i + 1))
+          if (!out(Match(p, i - len + 1, i + 1))) return
           j += 1
         }
       }
