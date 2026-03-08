@@ -8,81 +8,68 @@ named after *tineola bisselliella*, the common clothes moth. small, fast, finds 
 
 finds all occurrences of a set of patterns in a haystack. combines two engines:
 
-- a **teddy simd prefilter** (via `jdk.incubator.vector`) for small pattern sets. scans 16 bytes at a time using the pshufb nibble-lookup trick from hyperscan/rust's `aho-corasick`
+- a **teddy simd prefilter** (via `jdk.incubator.vector`) for small pattern sets. scans 32 bytes at a time on avx2 using the pshufb nibble-lookup trick from hyperscan/rust's `aho-corasick`
 - a **double-array trie aho-corasick** automaton as scalar fallback. works for any pattern count, handles tails and large pattern sets
 
-the teddy path auto-enables when patterns spread to <=4 per bucket (greedy by fingerprint, 8 buckets, hard cap 64 patterns). haystack must also fill a simd lane. everything else routes to the automaton. results are identical either way.
+teddy auto-enables when patterns spread to <=4 per bucket (greedy by fingerprint, 8 buckets, hard cap 64). haystack must also fill a simd lane. everything else routes to the automaton. results are identical either way.
 
-teddy's speedup comes from skipping verification when simd finds no candidates. false positive rate grows with pattern count and with shared prefix bytes. practical guidance:
+teddy's speedup comes from skipping verification when simd finds no candidates. false positive rate grows with pattern count and with shared prefix bytes:
 
-1. teddy will get you ~10x speedup over scalar for <= 16 diverse prefix patterns
-2. patterns sharing first bytes will cause buckets to collide and the teddy prefilter to weaken
-3. short, random patterns at >=32 patterns will break even with scalar or be worse
+1. expect 15-20x over scalar implementation for <=16 diverse-prefix patterns 
+2. patterns sharing first bytes causes bucket collisions and the benefit of the prefilter weakens
+3. the heuristic will usually auto-disable and fall back for a configuration with ~32+ dense/random patterns
 
 ## usage
+
+```scala
+libraryDependencies += "io.github.jciech" %% "tineola" % "<version>"
+```
 
 ```scala
 import tineola.AhoCorasick
 
 val ac = AhoCorasick(Seq("foo", "bar", "baz"))
-
 ac.findAll("foobarbaz").toList
 // List(Match(0, 0, 3), Match(1, 3, 6), Match(2, 6, 9))
 
 ac.findFirst("xxbarxx")
 // Some(Match(1, 2, 5))
-```
 
-byte-oriented api for already-encoded data:
+// bytes directly (no utf-8 encode)
+AhoCorasick.fromBytes(Seq("needle".getBytes)).findAll(haystackBytes)
 
-```scala
-val ac = AhoCorasick.fromBytes(Seq("needle".getBytes))
-ac.findAll(haystackBytes)
-```
-
-disable the simd path for benchmarking or debugging:
-
-```scala
+// builder: disable simd, or force a lane width
+import jdk.incubator.vector.ByteVector
 AhoCorasick.builder
   .addPattern("foo")
-  .enableTeddy(false)
+  .enableTeddy(false)                       // scalar only
+  .teddySpecies(ByteVector.SPECIES_128)     // or force 128-bit
   .build()
 ```
 
 ## requirements
 
 - jdk 21 or later
-- `--add-modules jdk.incubator.vector` at runtime (and at compile time if building from source)
+- `--add-modules jdk.incubator.vector` at runtime
 
 jdk 24+ is recommended. `selectFrom` got index-wrap semantics ([jep 489](https://openjdk.org/jeps/489)) which lets the jit emit raw `vpshufb` without bounds checks.
 
 ## benchmarks
 
-throughput, 64kb haystack, random lowercase ascii with ~1% match density.
-
-```
-sbt "bench/Jmh/run -i 10 -wi 10 -f 3"
-```
-
-ops/ms (jdk 21, avx2, 3 wi / 3 i. run the full bench for real data):
+ops/ms. 64kb random-lowercase haystack, ~1% match density. jdk 21, avx2, 5 wi / 5 i.
 
 | impl | 8 patterns | 16 patterns | 32 patterns | 64 patterns |
 |---|---|---|---|---|
-| tineola teddy (256-bit, default on avx2+) | 65.94 | 37.47 | — | — |
-| tineola teddy (128-bit) | 38.17 | 28.86 | — | — |
-| tineola dat (auto-fallback) | 3.20 | 2.73 | 3.12 | 4.18 |
-| hankcs/AhoCorasickDoubleArrayTrie | 3.41 | 2.57 | 2.58 | 3.33 |
-| robert-bor/aho-corasick | 1.55 | 1.09 | 1.17 | 1.18 |
+| tineola (teddy auto, 256-bit) | 69.86 | 47.25 | 4.05 | 4.30 |
+| tineola (teddy 128-bit forced) | 38.54 | 30.66 | — | — |
+| tineola (dat forced) | 3.25 | 2.69 | 3.04 | 4.31 |
+| hankcs/AhoCorasickDoubleArrayTrie | 3.43 | 2.57 | 2.58 | 3.34 |
+| robert-bor/aho-corasick | 1.57 | 1.10 | 1.21 | 1.17 |
 
-species width is auto-detected (`SPECIES_PREFERRED` capped at 256). at 32+ random short patterns teddy auto-disables and falls back to the dat row.
+lane width is auto-detected (`SPECIES_PREFERRED` capped at 256). at 64+ patterns here teddy disabled itself/
 
-
-## installing
-
-cross-published for scala 2.13 and scala 3.
-
-```scala
-libraryDependencies += "io.github.jciech" %% "tineola" % "<version>"
+```
+sbt "bench/Jmh/run -i 10 -wi 10 -f 3"
 ```
 
 ## references
