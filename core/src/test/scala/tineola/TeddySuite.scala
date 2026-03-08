@@ -1,6 +1,7 @@
 package tineola
 
 import java.nio.charset.StandardCharsets.UTF_8
+import jdk.incubator.vector.ByteVector
 
 class TeddySuite extends munit.FunSuite {
 
@@ -73,6 +74,32 @@ class TeddySuite extends munit.FunSuite {
     val patterns = Seq("abc", "def", "ghi", "jkl", "mno", "pqr", "stu", "vwx")
     val ac = AhoCorasick(patterns)
     assert(ac.teddy.isDefined)
+  }
+
+  test("species 128 and 256 agree with DAT") {
+    val patterns = Seq("alpha", "beta", "gamma", "delta", "epsilon", "zeta")
+    val hay = (patterns.mkString + "noise") * 40
+    val ps = patterns.map(_.getBytes(UTF_8))
+
+    def collect(species: jdk.incubator.vector.VectorSpecies[java.lang.Byte]) =
+      AhoCorasick.builder
+        .addAll(ps)
+        .teddySpecies(species)
+        .build()
+        .findAll(hay)
+        .map(m => (m.pattern, m.start, m.end))
+        .toSet
+
+    val dat = AhoCorasick.builder
+      .addAll(ps)
+      .enableTeddy(false)
+      .build()
+      .findAll(hay)
+      .map(m => (m.pattern, m.start, m.end))
+      .toSet
+
+    assertEquals(collect(ByteVector.SPECIES_128), dat, "128-bit")
+    assertEquals(collect(ByteVector.SPECIES_256), dat, "256-bit")
   }
 
   test("tail handled by DAT") {

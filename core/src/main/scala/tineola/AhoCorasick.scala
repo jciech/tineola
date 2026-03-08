@@ -3,6 +3,8 @@ package tineola
 import java.nio.charset.StandardCharsets.UTF_8
 import scala.collection.mutable.ArrayBuffer
 
+import jdk.incubator.vector.VectorSpecies
+
 import tineola.automaton.{DoubleArrayTrie, TrieBuilder}
 import tineola.teddy.Teddy
 
@@ -60,6 +62,7 @@ object AhoCorasick {
     private val tb = new TrieBuilder
     private val patterns = ArrayBuffer.empty[Array[Byte]]
     private var useTeddy = true
+    private var species: VectorSpecies[java.lang.Byte] = Teddy.DefaultSpecies
 
     def addPattern(p: Array[Byte]): this.type = {
       tb.addPattern(p); patterns += p; this
@@ -74,9 +77,11 @@ object AhoCorasick {
 
     def enableTeddy(on: Boolean): this.type = { useTeddy = on; this }
 
+    def teddySpecies(s: VectorSpecies[java.lang.Byte]): this.type = { species = s; this }
+
     def build(): AhoCorasick = {
       val dat = tb.build()
-      val td = if (useTeddy) Teddy.tryBuild(patterns.toArray, dat) else None
+      val td = if (useTeddy) Teddy.tryBuild(patterns.toArray, dat, species) else None
       new AhoCorasick(dat, td)
     }
   }

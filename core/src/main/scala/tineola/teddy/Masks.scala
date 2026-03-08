@@ -11,6 +11,13 @@ private[tineola] object Masks {
 
   val NumBuckets = 8
 
+  def tile(mask16: Array[Byte], width: Int): Array[Byte] = {
+    val out = new Array[Byte](width)
+    var i = 0
+    while (i < width) { System.arraycopy(mask16, 0, out, i, 16); i += 16 }
+    out
+  }
+
   def build(patterns: Array[Array[Byte]], fingerprintLen: Int): Masks = {
     val buckets = assignBuckets(patterns, fingerprintLen)
     val lo = Array.ofDim[Byte](fingerprintLen, 16)

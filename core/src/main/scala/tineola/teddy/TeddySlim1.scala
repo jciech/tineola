@@ -1,17 +1,20 @@
 package tineola.teddy
 
-import jdk.incubator.vector.{ByteVector, VectorOperators}
+import jdk.incubator.vector.{ByteVector, VectorOperators, VectorSpecies}
 
 import tineola.Match
 import tineola.automaton.DoubleArrayTrie
 
-private[teddy] final class TeddySlim1(m: Masks, dat: DoubleArrayTrie) extends Teddy {
+private[teddy] final class TeddySlim1(
+    S: VectorSpecies[java.lang.Byte],
+    m: Masks,
+    dat: DoubleArrayTrie
+) extends Teddy {
 
-  private val S = ByteVector.SPECIES_128
   private val lane = S.length()
   private val nib = ByteVector.broadcast(S, 0x0f)
-  private val loMask = ByteVector.fromArray(S, m.lo(0), 0)
-  private val hiMask = ByteVector.fromArray(S, m.hi(0), 0)
+  private val loMask = ByteVector.fromArray(S, Masks.tile(m.lo(0), lane), 0)
+  private val hiMask = ByteVector.fromArray(S, Masks.tile(m.hi(0), lane), 0)
   private val buckets = m.buckets
   private val pats = m.patterns
   private val plens = dat.patternLengths

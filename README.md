@@ -64,16 +64,17 @@ throughput, 64kb haystack, random lowercase ascii with ~1% match density.
 sbt "bench/Jmh/run -i 10 -wi 10 -f 3"
 ```
 
-ops/ms (jdk 21, 3 wi / 3 i. run the full bench for real data):
+ops/ms (jdk 21, avx2, 3 wi / 3 i. run the full bench for real data):
 
 | impl | 8 patterns | 16 patterns | 32 patterns | 64 patterns |
 |---|---|---|---|---|
-| tineola (auto) | 39.13 | 31.24 | 3.06 | 4.31 |
-| tineola (dat forced) | 3.20 | 2.73 | 3.12 | 4.18 |
+| tineola teddy (256-bit, default on avx2+) | 65.94 | 37.47 | — | — |
+| tineola teddy (128-bit) | 38.17 | 28.86 | — | — |
+| tineola dat (auto-fallback) | 3.20 | 2.73 | 3.12 | 4.18 |
 | hankcs/AhoCorasickDoubleArrayTrie | 3.41 | 2.57 | 2.58 | 3.33 |
 | robert-bor/aho-corasick | 1.55 | 1.09 | 1.17 | 1.18 |
 
-at 32+ random short patterns teddy auto-disables — the auto row tracks dat once verification cost stops paying off.
+species width is auto-detected (`SPECIES_PREFERRED` capped at 256). at 32+ random short patterns teddy auto-disables and falls back to the dat row.
 
 
 ## installing
