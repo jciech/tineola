@@ -10,7 +10,7 @@ inThisBuild(
 )
 
 lazy val scala213 = "3.9.0"
-lazy val scala3 = "3.8.2"
+lazy val scala3 = "3.8.4"
 
 ThisBuild / scalaVersion := scala3
 ThisBuild / crossScalaVersions := Seq(scala213, scala3)
