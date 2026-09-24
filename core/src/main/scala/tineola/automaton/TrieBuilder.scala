@@ -110,7 +110,7 @@ private[tineola] final class TrieBuilder {
     }
 
     for (s <- bfsOrder) {
-      val children = goto(s).toArray.sortBy(_._1)
+      val children = goto(s).toArray.sortBy(_._1 & 0xff)
       val keys = children.map { case (b, _) => b & 0xff }
       val b = findBase(keys)
       val slot = stateToSlot(s)
