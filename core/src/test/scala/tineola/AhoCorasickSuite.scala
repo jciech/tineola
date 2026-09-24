@@ -80,6 +80,23 @@ class AhoCorasickSuite extends munit.FunSuite {
     assertEquals(ac.findAll(hay).toList, List(Match(0, 1, 3)))
   }
 
+  test("sibling bytes on both sides of 0x80") {
+    val patterns = Seq(
+      Array(0x00, 0x00, 0x80),
+      Array(0x00, 0x00, 0xff),
+      Array(0x00, 0x00, 0x00),
+      Array(0x00, 0x7f),
+      Array(0x7f, 0x00),
+      Array(0x7f, 0x7f)
+    ).map(_.map(_.toByte))
+    val hay = Array(0x00, 0x00, 0x80, 0x7f, 0x7f, 0x00, 0x00, 0xff).map(_.toByte)
+    val ac = AhoCorasick.fromBytes(patterns)
+    assertEquals(
+      ac.findAll(hay).toList,
+      List(Match(0, 0, 3), Match(5, 3, 5), Match(4, 4, 6), Match(1, 5, 8))
+    )
+  }
+
   test("findFirst") {
     val ac = AhoCorasick(Seq("foo", "bar"))
     assertEquals(ac.findFirst("xxbarxxfoo").map(_.pattern), Some(1))
