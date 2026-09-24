@@ -38,6 +38,13 @@ private[tineola] abstract class TeddyFat(m: Masks, protected final val dat: Doub
     VectorShuffle.fromArray(S256, idx, 0)
   }
 
+  private val interleave = {
+    val idx = new Array[Int](32)
+    var i = 0
+    while (i < 32) { idx(i) = (i >>> 1) + ((i & 1) << 4); i += 1 }
+    VectorShuffle.fromArray(S256, idx, 0)
+  }
+
   private val buckets = m.buckets
   private val pats = m.patterns
   private val plens = dat.patternLengths
@@ -65,16 +72,16 @@ private[tineola] abstract class TeddyFat(m: Masks, protected final val dat: Doub
       cand: ByteVector,
       out: Match => Boolean
   ): Boolean = {
-    val longs = cand.reinterpretAsLongs()
+    val longs = cand.rearrange(interleave).reinterpretAsLongs()
     var k = 0
     while (k < 4) {
       var bits = longs.lane(k)
       while (bits != 0L) {
         val tz = java.lang.Long.numberOfTrailingZeros(bits)
         bits &= bits - 1L
-        val off = ((k & 1) << 3) + (tz >>> 3)
+        val off = (k << 2) + (tz >>> 4)
         if (off < stride) {
-          val bucket = ((k & 2) << 2) | (tz & 7)
+          val bucket = tz & 15
           val ps = buckets(bucket)
           val pos = base + off
           var j = 0
