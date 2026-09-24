@@ -26,31 +26,51 @@ libraryDependencies += "io.github.jciech" %% "tineola" % "<version>"
 ```
 
 ```scala
-import tineola.AhoCorasick
+import tineola.{AhoCorasick, MatchKind}
 
-val ac = AhoCorasick(Seq("foo", "bar", "baz"))
+val ac = AhoCorasick("foo", "bar", "baz")
+
 ac.findAll("foobarbaz").toList
-// List(Match(0, 0, 3), Match(1, 3, 6), Match(2, 6, 9))
+// List(Match(0,0,3), Match(1,3,6), Match(2,6,9))
 
-ac.findFirst("xxbarxx")
-// Some(Match(1, 2, 5))
+ac.findFirst("xxbarxx")                           // Some(Match(1,2,5))
+ac.isMatch("xxbazxx")                             // true
+ac.replaceAll("foo and bar")(m => "*" * m.length) // "*** and ***"
 
-// bytes directly (no utf-8 encode)
-AhoCorasick.fromBytes(Seq("needle".getBytes)).findAll(haystackBytes)
+// every match, overlapping ones included
+AhoCorasick("he", "she", "hers").findOverlapping("ushers").toList
+// List(Match(1,1,4), Match(0,2,4), Match(2,2,6))
 
-// builder: disable simd, or force a lane width
-import jdk.incubator.vector.ByteVector
-AhoCorasick.builder
-  .addPattern("foo")
-  .enableTeddy(false)                       // scalar only
-  .teddySpecies(ByteVector.SPECIES_128)     // or force 128-bit
-  .build()
+// longest match wins instead of the first-listed pattern
+AhoCorasick(Seq("app", "apple"), AhoCorasick.Options(matchKind = MatchKind.LeftmostLongest))
+
+// scalar engine only
+AhoCorasick(Seq("foo", "bar"), AhoCorasick.Options(simd = false))
+
+// bytes, optionally within [from, until)
+AhoCorasick.fromBytes(Seq("needle".getBytes)).findAll(bytes, from, until)
 ```
+
+### semantics
+
+- `findAll` returns non-overlapping matches from left to right. with the default `MatchKind.LeftmostFirst` the leftmost match wins, and among matches starting at the same position the pattern listed first wins, like regex alternation. `MatchKind.LeftmostLongest` picks the longest instead. `findFirst` returns the first match `findAll` would.
+- `findOverlapping` returns every match, ordered by start, then end, then pattern index.
+- `Match(pattern, start, end)` is half-open. offsets are char indices for a `String` (so `substring` works) and byte offsets for an `Array[Byte]`.
+- iterators are lazy. `findAll` keeps constant state; `findOverlapping` walks the haystack in 64 KiB blocks.
+- an `AhoCorasick` is immutable and safe to share across threads. patterns are copied when it's built and must be non-empty.
+
+### migrating from 0.4
+
+- `findAll` used to return every overlapping match; that's `findOverlapping` now.
+- `findFirst` returns the leftmost match rather than the one that ends first.
+- `String` inputs report char offsets instead of UTF-8 byte offsets.
+- `AhoCorasick.builder` is gone: pass `AhoCorasick.Options(...)`, where `enableTeddy(false)` becomes `simd = false`.
+- range arguments are `(from, until)`.
 
 ## requirements
 
 - jdk 21 or later
-- `--add-modules jdk.incubator.vector` at runtime
+- `--add-modules jdk.incubator.vector` at runtime for the simd engine. without it tineola falls back to the scalar automaton
 
 jdk 24+ is recommended. `selectFrom` got index-wrap semantics ([jep 489](https://openjdk.org/jeps/489)) which lets the jit emit raw `vpshufb` without bounds checks.
 

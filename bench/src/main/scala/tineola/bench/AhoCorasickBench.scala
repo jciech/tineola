@@ -43,10 +43,7 @@ class AhoCorasickBench {
     haystackStr = new String(haystack)
 
     tineolaTeddy = AhoCorasick(patterns.toIndexedSeq)
-    tineolaDat = AhoCorasick.builder
-      .addAll(patterns.map(_.getBytes).toIndexedSeq)
-      .enableTeddy(false)
-      .build()
+    tineolaDat = AhoCorasick(patterns.toIndexedSeq, AhoCorasick.Options(simd = false))
 
     val map = new TreeMap[String, String]()
     patterns.foreach(p => map.put(p, p))
@@ -58,13 +55,13 @@ class AhoCorasickBench {
 
   @Benchmark
   def tineola_teddy(bh: Blackhole): Unit = {
-    val it = tineolaTeddy.findAll(haystack)
+    val it = tineolaTeddy.findOverlapping(haystack)
     while (it.hasNext) bh.consume(it.next())
   }
 
   @Benchmark
   def tineola_dat(bh: Blackhole): Unit = {
-    val it = tineolaDat.findAll(haystack)
+    val it = tineolaDat.findOverlapping(haystack)
     while (it.hasNext) bh.consume(it.next())
   }
 
