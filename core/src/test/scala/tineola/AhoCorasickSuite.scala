@@ -112,4 +112,14 @@ class AhoCorasickSuite extends munit.FunSuite {
     val ac = AhoCorasick(Seq("xyz"))
     assertEquals(ac.findFirst("abcabc" * 100), None)
   }
+
+  test("match order does not depend on haystack length") {
+    val ac = AhoCorasick(Seq("abcd", "bc"))
+    assertEquals(ac.findFirst("abcd"), Some(Match(1, 1, 3)))
+    assertEquals(ac.findFirst("abcd" + "x" * 60), Some(Match(1, 1, 3)))
+    assertEquals(
+      ac.findAll("x" * 60 + "abcd" + "xxx" + "abcd").toList,
+      List(Match(1, 61, 63), Match(0, 60, 64), Match(1, 68, 70), Match(0, 67, 71))
+    )
+  }
 }

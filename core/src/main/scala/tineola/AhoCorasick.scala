@@ -21,7 +21,7 @@ final class AhoCorasick private (
   def findAll(haystack: Array[Byte], from: Int, to: Int): Iterator[Match] = {
     val buf = ArrayBuffer.empty[Match]
     scan(haystack, from, to) { m => buf += m; true }
-    buf.iterator
+    buf.sortInPlaceWith(AhoCorasick.precedes).iterator
   }
 
   def findAll(haystack: String): Iterator[Match] =
@@ -30,6 +30,8 @@ final class AhoCorasick private (
   def findFirst(haystack: Array[Byte]): Option[Match] = {
     var result: Match = null
     scan(haystack, 0, haystack.length) { m => result = m; false }
+    if (result != null)
+      automaton.scan(haystack, result.start, result.end, m => { result = m; false })
     Option(result)
   }
 
@@ -54,6 +56,11 @@ object AhoCorasick {
     builder.addAll(patterns).build()
 
   def builder: Builder = new Builder
+
+  private def precedes(a: Match, b: Match): Boolean =
+    if (a.end != b.end) a.end < b.end
+    else if (a.start != b.start) a.start < b.start
+    else a.pattern < b.pattern
 
   final class Builder private[AhoCorasick] () {
     private val tb = new TrieBuilder

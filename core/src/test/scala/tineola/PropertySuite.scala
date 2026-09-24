@@ -66,8 +66,8 @@ class PropertySuite extends munit.ScalaCheckSuite {
     val dat = AhoCorasick.builder.addAll(ps).enableTeddy(false).build()
     val h = hay.getBytes(UTF_8)
     def collect(ac: AhoCorasick) =
-      ac.findAll(h).map(m => (m.pattern, m.start, m.end)).toSet
-    collect(teddy) == collect(dat)
+      ac.findAll(h).map(m => (m.pattern, m.start, m.end)).toList
+    collect(teddy) == collect(dat) && teddy.findFirst(h) == dat.findFirst(h)
   }
 
   property("DAT matches naive substring search") {
