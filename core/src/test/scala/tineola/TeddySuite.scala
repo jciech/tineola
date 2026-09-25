@@ -1,21 +1,14 @@
 package tineola
 
 import java.nio.charset.StandardCharsets.UTF_8
-import jdk.incubator.vector.ByteVector
+import jdk.incubator.vector.{ByteVector, VectorSpecies}
 
 class TeddySuite extends munit.FunSuite {
 
-  private def both(
-      patterns: Seq[String],
-      hay: String
-  ): (Set[(Int, Int, Int)], Set[(Int, Int, Int)]) = {
-    val ps = patterns.map(_.getBytes(UTF_8))
-    val teddy = AhoCorasick.builder.addAll(ps).enableTeddy(true).build()
-    val dat = AhoCorasick.builder.addAll(ps).enableTeddy(false).build()
-    val h = hay.getBytes(UTF_8)
-    def collect(ac: AhoCorasick) =
-      ac.findAll(h).map(m => (m.pattern, m.start, m.end)).toSet
-    (collect(teddy), collect(dat))
+  private def both(patterns: Seq[String], hay: String): (List[Match], List[Match]) = {
+    val teddy = AhoCorasick(patterns)
+    val scalar = AhoCorasick(patterns, AhoCorasick.Options(simd = false))
+    (teddy.findOverlapping(hay).toList, scalar.findOverlapping(hay).toList)
   }
 
   test("slim1: single-byte patterns") {
@@ -102,24 +95,11 @@ class TeddySuite extends munit.FunSuite {
   test("species 128 and 256 agree with DAT") {
     val patterns = Seq("alpha", "beta", "gamma", "delta", "epsilon", "zeta")
     val hay = (patterns.mkString + "noise") * 40
-    val ps = patterns.map(_.getBytes(UTF_8))
+    val ps = patterns.map(_.getBytes(UTF_8)).toArray
+    val dat = AhoCorasick(patterns, AhoCorasick.Options(simd = false)).findOverlapping(hay).toList
 
-    def collect(species: jdk.incubator.vector.VectorSpecies[java.lang.Byte]) =
-      AhoCorasick.builder
-        .addAll(ps)
-        .teddySpecies(species)
-        .build()
-        .findAll(hay)
-        .map(m => (m.pattern, m.start, m.end))
-        .toSet
-
-    val dat = AhoCorasick.builder
-      .addAll(ps)
-      .enableTeddy(false)
-      .build()
-      .findAll(hay)
-      .map(m => (m.pattern, m.start, m.end))
-      .toSet
+    def collect(species: VectorSpecies[java.lang.Byte]) =
+      AhoCorasick.build(ps, AhoCorasick.Options(), species).findOverlapping(hay).toList
 
     assertEquals(collect(ByteVector.SPECIES_128), dat, "128-bit")
     assertEquals(collect(ByteVector.SPECIES_256), dat, "256-bit")

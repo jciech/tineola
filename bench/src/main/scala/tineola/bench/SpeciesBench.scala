@@ -33,28 +33,28 @@ class SpeciesBench {
   def setup(): Unit = {
     val patterns = Fixtures.randomPatterns(numPatterns, 4, 10)
     haystack = Fixtures.seededHaystack(haystackLen, patterns, 0.01)
-    val ps = patterns.map(_.getBytes).toIndexedSeq
+    val ps = patterns.map(_.getBytes)
 
-    ac128 = AhoCorasick.builder.addAll(ps).teddySpecies(ByteVector.SPECIES_128).build()
-    ac256 = AhoCorasick.builder.addAll(ps).teddySpecies(ByteVector.SPECIES_256).build()
-    acPreferred = AhoCorasick.builder.addAll(ps).build()
+    ac128 = AhoCorasick.build(ps, AhoCorasick.Options(), ByteVector.SPECIES_128)
+    ac256 = AhoCorasick.build(ps, AhoCorasick.Options(), ByteVector.SPECIES_256)
+    acPreferred = AhoCorasick.fromBytes(ps.toIndexedSeq)
   }
 
   @Benchmark
   def teddy_128(bh: Blackhole): Unit = {
-    val it = ac128.findAll(haystack)
+    val it = ac128.findOverlapping(haystack)
     while (it.hasNext) bh.consume(it.next())
   }
 
   @Benchmark
   def teddy_256(bh: Blackhole): Unit = {
-    val it = ac256.findAll(haystack)
+    val it = ac256.findOverlapping(haystack)
     while (it.hasNext) bh.consume(it.next())
   }
 
   @Benchmark
   def teddy_preferred(bh: Blackhole): Unit = {
-    val it = acPreferred.findAll(haystack)
+    val it = acPreferred.findOverlapping(haystack)
     while (it.hasNext) bh.consume(it.next())
   }
 }

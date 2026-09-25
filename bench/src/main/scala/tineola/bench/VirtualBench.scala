@@ -32,27 +32,27 @@ class VirtualBench {
 
   @Benchmark
   def mono_n3(bh: Blackhole): Unit = {
-    val it = acN3.findAll(haystack)
+    val it = acN3.findOverlapping(haystack)
     while (it.hasNext) bh.consume(it.next())
   }
 
   @Benchmark
   def poly_n123(bh: Blackhole): Unit = {
-    var it = acN1.findAll(haystack)
+    var it = acN1.findOverlapping(haystack)
     while (it.hasNext) bh.consume(it.next())
-    it = acN2.findAll(haystack)
+    it = acN2.findOverlapping(haystack)
     while (it.hasNext) bh.consume(it.next())
-    it = acN3.findAll(haystack)
+    it = acN3.findOverlapping(haystack)
     while (it.hasNext) bh.consume(it.next())
   }
 
   @Benchmark
   def mono_n3_x3(bh: Blackhole): Unit = {
-    var it = acN3.findAll(haystack)
+    var it = acN3.findOverlapping(haystack)
     while (it.hasNext) bh.consume(it.next())
-    it = acN3.findAll(haystack)
+    it = acN3.findOverlapping(haystack)
     while (it.hasNext) bh.consume(it.next())
-    it = acN3.findAll(haystack)
+    it = acN3.findOverlapping(haystack)
     while (it.hasNext) bh.consume(it.next())
   }
 }
